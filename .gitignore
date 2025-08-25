@@ -24,3 +24,8 @@ Thumbs.db
 
 # Coverage (kalau pakai testing)
 coverage/
+
+# Database (kalau pakai database lokal)
+database/
+
+.uploads/

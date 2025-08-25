@@ -14,7 +14,14 @@ const getAllPayments = async (req, res) => {
 
     // If user is not admin, only show their own payments
     if (req.user.role !== "admin") {
-      filters.user_id = req.user.id;
+      if (req.user.role === "masyarakat") {
+        // Filter by masyarakat_id for masyarakat role
+        filters.masyarakat_id = req.user.masyarakat_id;
+        // Ensure we don't accidentally filter by user_id string
+        delete filters.user_id;
+      } else {
+        filters.user_id = req.user.id;
+      }
     }
 
     const payments = await Payment.getAll(filters);
@@ -48,11 +55,20 @@ const getPaymentById = async (req, res) => {
     }
 
     // Check if user can access this payment
-    if (req.user.role !== "admin" && payment.user_id !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: "Akses ditolak",
-      });
+    if (req.user.role !== "admin") {
+      if (req.user.role === "masyarakat") {
+        if (!req.user.masyarakat_id || parseInt(payment.masyarakat_id) !== parseInt(req.user.masyarakat_id)) {
+          return res.status(403).json({
+            success: false,
+            message: "Akses ditolak",
+          });
+        }
+      } else if (payment.user_id !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: "Akses ditolak",
+        });
+      }
     }
 
     res.status(200).json({
@@ -124,7 +140,7 @@ const createPayment = async (req, res) => {
 
     // Create payment
     const paymentId = await Payment.create({
-      user_id: req.user.id,
+      user_id: req.user.role === "masyarakat" ? null : req.user.id,
       masyarakat_id: masyarakat_id,
       payment_type_id,
       amount,
@@ -167,11 +183,20 @@ const updatePayment = async (req, res) => {
     }
 
     // Check if user can update this payment
-    if (req.user.role !== "admin" && payment.user_id !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: "Akses ditolak",
-      });
+    if (req.user.role !== "admin") {
+      if (req.user.role === "masyarakat") {
+        if (!req.user.masyarakat_id || parseInt(payment.masyarakat_id) !== parseInt(req.user.masyarakat_id)) {
+          return res.status(403).json({
+            success: false,
+            message: "Akses ditolak",
+          });
+        }
+      } else if (payment.user_id !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: "Akses ditolak",
+        });
+      }
     }
 
     // Only allow update for pending payments
@@ -275,11 +300,20 @@ const deletePayment = async (req, res) => {
     }
 
     // Check if user can delete this payment
-    if (req.user.role !== "admin" && payment.user_id !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: "Akses ditolak",
-      });
+    if (req.user.role !== "admin") {
+      if (req.user.role === "masyarakat") {
+        if (!req.user.masyarakat_id || parseInt(payment.masyarakat_id) !== parseInt(req.user.masyarakat_id)) {
+          return res.status(403).json({
+            success: false,
+            message: "Akses ditolak",
+          });
+        }
+      } else if (payment.user_id !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: "Akses ditolak",
+        });
+      }
     }
 
     // Only allow delete for pending payments
@@ -313,7 +347,11 @@ const getPaymentStats = async (req, res) => {
 
     // If user is not admin, only show their own stats
     if (req.user.role !== "admin") {
-      filters.user_id = req.user.id;
+      if (req.user.role === "masyarakat") {
+        filters.masyarakat_id = req.user.masyarakat_id;
+      } else {
+        filters.user_id = req.user.id;
+      }
     }
 
     const stats = await Payment.getStats(filters);

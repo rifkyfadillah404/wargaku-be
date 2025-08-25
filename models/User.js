@@ -51,11 +51,26 @@ class User {
   static async getByEmail(email) {
     try {
       const [rows] = await pool.execute(`
-        SELECT u.*, m.nama as masyarakat_nama, m.nik as masyarakat_nik 
-        FROM users u 
-        LEFT JOIN masyarakat m ON u.masyarakat_id = m.id 
+        SELECT u.*, m.nama as masyarakat_nama, m.nik as masyarakat_nik
+        FROM users u
+        LEFT JOIN masyarakat m ON u.masyarakat_id = m.id
         WHERE u.email = ?
       `, [email]);
+      return rows[0];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Mendapatkan user berdasarkan masyarakat_id
+  static async getByMasyarakatId(masyarakat_id) {
+    try {
+      const [rows] = await pool.execute(`
+        SELECT u.*, m.nama as masyarakat_nama, m.nik as masyarakat_nik
+        FROM users u
+        LEFT JOIN masyarakat m ON u.masyarakat_id = m.id
+        WHERE u.masyarakat_id = ?
+      `, [masyarakat_id]);
       return rows[0];
     } catch (error) {
       throw error;

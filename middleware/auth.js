@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Masyarakat = require('../models/Masyarakat');
 
 // Secret key untuk JWT (sebaiknya di environment variable)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
@@ -19,8 +20,42 @@ const authenticateToken = async (req, res, next) => {
 
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Support "masyarakat" tokens that are not backed by users table
+    // Expect decoded.userId like "masyarakat_123" and decoded.role === "masyarakat"
+    if (
+      (typeof decoded.userId === 'string' && decoded.userId.startsWith('masyarakat_')) ||
+      decoded.role === 'masyarakat'
+    ) {
+      const masyarakatIdStr = typeof decoded.userId === 'string' && decoded.userId.startsWith('masyarakat_')
+        ? decoded.userId.split('_')[1]
+        : null;
+      const masyarakatId = masyarakatIdStr ? parseInt(masyarakatIdStr, 10) : null;
+
+      // Try enrich from DB for profile completeness
+      let masyarakatData = null;
+      if (masyarakatId) {
+        try {
+          masyarakatData = await Masyarakat.getById(masyarakatId);
+        } catch (e) {
+          // non-fatal, continue with minimal object
+        }
+      }
+
+      // Attach enriched user-like object for masyarakat
+      req.user = {
+        id: decoded.userId, // keep string to avoid collision with numeric users.id
+        role: 'masyarakat',
+        masyarakat_id: masyarakatId || null,
+        masyarakat_nama: masyarakatData?.nama || undefined,
+        masyarakat_nik: masyarakatData?.nik || undefined,
+        username: masyarakatData?.nama || undefined,
+        is_active: true
+      };
+      return next();
+    }
     
-    // Get user data
+    // Regular user/admin from users table
     const user = await User.getById(decoded.userId);
     
     if (!user || !user.is_active) {
@@ -85,7 +120,7 @@ const requireUser = (req, res, next) => {
     });
   }
 
-  if (!['user', 'admin'].includes(req.user.role)) {
+  if (!['masyarakat', 'admin'].includes(req.user.role)) {
     return res.status(403).json({
       success: false,
       message: 'Akses ditolak'

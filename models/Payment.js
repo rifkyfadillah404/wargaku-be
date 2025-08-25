@@ -13,7 +13,7 @@ class Payment {
         FROM payments p
         JOIN payment_types pt ON p.payment_type_id = pt.id
         JOIN masyarakat m ON p.masyarakat_id = m.id
-        JOIN users u ON p.user_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
         LEFT JOIN users approver ON p.approved_by = approver.id
         WHERE 1=1
       `;
@@ -62,7 +62,7 @@ class Payment {
         FROM payments p
         JOIN payment_types pt ON p.payment_type_id = pt.id
         JOIN masyarakat m ON p.masyarakat_id = m.id
-        JOIN users u ON p.user_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
         LEFT JOIN users approver ON p.approved_by = approver.id
         WHERE p.id = ?
       `,
@@ -221,7 +221,7 @@ class Payment {
         FROM payments p
         JOIN payment_types pt ON p.payment_type_id = pt.id
         JOIN masyarakat m ON p.masyarakat_id = m.id
-        JOIN users u ON p.user_id = u.id
+        LEFT JOIN users u ON p.user_id = u.id
         WHERE p.payment_month = ?
       `;
 

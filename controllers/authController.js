@@ -1,5 +1,6 @@
-const User = require('../models/User');
-const { generateToken, generateRefreshToken } = require('../middleware/auth');
+const User = require("../models/User");
+const Masyarakat = require("../models/Masyarakat");
+const { generateToken, generateRefreshToken } = require("../middleware/auth");
 
 // Login
 const login = async (req, res) => {
@@ -10,7 +11,7 @@ const login = async (req, res) => {
     if (!username || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Username dan password diperlukan'
+        message: "Username dan password diperlukan",
       });
     }
 
@@ -23,7 +24,7 @@ const login = async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Username atau password salah'
+        message: "Username atau password salah",
       });
     }
 
@@ -31,7 +32,7 @@ const login = async (req, res) => {
     if (!user.is_active) {
       return res.status(401).json({
         success: false,
-        message: 'Akun Anda tidak aktif. Hubungi administrator'
+        message: "Akun Anda tidak aktif. Hubungi administrator",
       });
     }
 
@@ -40,7 +41,7 @@ const login = async (req, res) => {
     if (!isValidPassword) {
       return res.status(401).json({
         success: false,
-        message: 'Username atau password salah'
+        message: "Username atau password salah",
       });
     }
 
@@ -53,19 +54,78 @@ const login = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Login berhasil',
+      message: "Login berhasil",
       data: {
         user: userWithoutPassword,
         token,
-        refreshToken
-      }
+        refreshToken,
+      },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
-      message: 'Terjadi kesalahan saat login',
-      error: error.message
+      message: "Terjadi kesalahan saat login",
+      error: error.message,
+    });
+  }
+};
+
+// Login Masyarakat dengan NIK dan Nama
+const loginMasyarakat = async (req, res) => {
+  console.log("loginMasyarakat called with:", req.body);
+  try {
+    const { nik, nama } = req.body;
+
+    // Validasi input
+    if (!nik || !nama) {
+      return res.status(400).json({
+        success: false,
+        message: "NIK dan nama diperlukan",
+      });
+    }
+
+    // Cari masyarakat berdasarkan NIK dan nama
+    const masyarakat = await Masyarakat.loginWithNIKAndName(nik, nama);
+
+    if (!masyarakat) {
+      return res.status(401).json({
+        success: false,
+        message: "NIK atau nama tidak ditemukan",
+      });
+    }
+
+    // Buat user object untuk masyarakat
+    const userObject = {
+      id: `masyarakat_${masyarakat.id}`,
+      username: masyarakat.nama,
+      email: null,
+      role: "masyarakat",
+      masyarakat_id: masyarakat.id,
+      masyarakat_nama: masyarakat.nama,
+      masyarakat_nik: masyarakat.nik,
+      is_active: true,
+    };
+
+    // Generate tokens
+    const token = generateToken(userObject.id, userObject.role);
+    const refreshToken = generateRefreshToken(userObject.id);
+
+    res.status(200).json({
+      success: true,
+      message: "Login berhasil",
+      data: {
+        user: userObject,
+        token,
+        refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error("Login masyarakat error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan saat login",
+      error: error.message,
     });
   }
 };
@@ -73,13 +133,13 @@ const login = async (req, res) => {
 // Register (hanya untuk admin membuat user baru)
 const register = async (req, res) => {
   try {
-    const { username, email, password, role = 'user', masyarakat_id } = req.body;
+    const { username, email, password, role = "user", masyarakat_id } = req.body;
 
     // Validasi input
     if (!username || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Username, email, dan password diperlukan'
+        message: "Username, email, dan password diperlukan",
       });
     }
 
@@ -88,7 +148,7 @@ const register = async (req, res) => {
     if (existingUsername) {
       return res.status(400).json({
         success: false,
-        message: 'Username sudah digunakan'
+        message: "Username sudah digunakan",
       });
     }
 
@@ -97,7 +157,7 @@ const register = async (req, res) => {
     if (existingEmail) {
       return res.status(400).json({
         success: false,
-        message: 'Email sudah digunakan'
+        message: "Email sudah digunakan",
       });
     }
 
@@ -107,7 +167,7 @@ const register = async (req, res) => {
       email,
       password,
       role,
-      masyarakat_id
+      masyarakat_id,
     });
 
     // Get user data
@@ -116,15 +176,15 @@ const register = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'User berhasil dibuat',
-      data: userWithoutPassword
+      message: "User berhasil dibuat",
+      data: userWithoutPassword,
     });
   } catch (error) {
-    console.error('Register error:', error);
+    console.error("Register error:", error);
     res.status(500).json({
       success: false,
-      message: 'Terjadi kesalahan saat membuat user',
-      error: error.message
+      message: "Terjadi kesalahan saat membuat user",
+      error: error.message,
     });
   }
 };
@@ -133,18 +193,18 @@ const register = async (req, res) => {
 const getProfile = async (req, res) => {
   try {
     const { password: _, ...userWithoutPassword } = req.user;
-    
+
     res.status(200).json({
       success: true,
-      message: 'Profile berhasil diambil',
-      data: userWithoutPassword
+      message: "Profile berhasil diambil",
+      data: userWithoutPassword,
     });
   } catch (error) {
-    console.error('Get profile error:', error);
+    console.error("Get profile error:", error);
     res.status(500).json({
       success: false,
-      message: 'Terjadi kesalahan saat mengambil profile',
-      error: error.message
+      message: "Terjadi kesalahan saat mengambil profile",
+      error: error.message,
     });
   }
 };
@@ -159,7 +219,7 @@ const updateProfile = async (req, res) => {
     if (!username || !email) {
       return res.status(400).json({
         success: false,
-        message: 'Username dan email diperlukan'
+        message: "Username dan email diperlukan",
       });
     }
 
@@ -168,7 +228,7 @@ const updateProfile = async (req, res) => {
     if (existingUsername && existingUsername.id !== userId) {
       return res.status(400).json({
         success: false,
-        message: 'Username sudah digunakan'
+        message: "Username sudah digunakan",
       });
     }
 
@@ -177,7 +237,7 @@ const updateProfile = async (req, res) => {
     if (existingEmail && existingEmail.id !== userId) {
       return res.status(400).json({
         success: false,
-        message: 'Email sudah digunakan'
+        message: "Email sudah digunakan",
       });
     }
 
@@ -187,7 +247,7 @@ const updateProfile = async (req, res) => {
       email,
       role: req.user.role,
       masyarakat_id: req.user.masyarakat_id,
-      is_active: req.user.is_active
+      is_active: req.user.is_active,
     });
 
     // Get updated user data
@@ -196,15 +256,15 @@ const updateProfile = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Profile berhasil diupdate',
-      data: userWithoutPassword
+      message: "Profile berhasil diupdate",
+      data: userWithoutPassword,
     });
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error("Update profile error:", error);
     res.status(500).json({
       success: false,
-      message: 'Terjadi kesalahan saat update profile',
-      error: error.message
+      message: "Terjadi kesalahan saat update profile",
+      error: error.message,
     });
   }
 };
@@ -219,7 +279,7 @@ const changePassword = async (req, res) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Password lama dan password baru diperlukan'
+        message: "Password lama dan password baru diperlukan",
       });
     }
 
@@ -228,7 +288,7 @@ const changePassword = async (req, res) => {
     if (!isValidPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Password lama tidak benar'
+        message: "Password lama tidak benar",
       });
     }
 
@@ -237,14 +297,14 @@ const changePassword = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Password berhasil diubah'
+      message: "Password berhasil diubah",
     });
   } catch (error) {
-    console.error('Change password error:', error);
+    console.error("Change password error:", error);
     res.status(500).json({
       success: false,
-      message: 'Terjadi kesalahan saat mengubah password',
-      error: error.message
+      message: "Terjadi kesalahan saat mengubah password",
+      error: error.message,
     });
   }
 };
@@ -256,23 +316,24 @@ const logout = async (req, res) => {
     // For now, we'll just send a success response
     res.status(200).json({
       success: true,
-      message: 'Logout berhasil'
+      message: "Logout berhasil",
     });
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error("Logout error:", error);
     res.status(500).json({
       success: false,
-      message: 'Terjadi kesalahan saat logout',
-      error: error.message
+      message: "Terjadi kesalahan saat logout",
+      error: error.message,
     });
   }
 };
 
 module.exports = {
   login,
+  loginMasyarakat,
   register,
   getProfile,
   updateProfile,
   changePassword,
-  logout
+  logout,
 };

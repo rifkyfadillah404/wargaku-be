@@ -22,6 +22,77 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+
+// EMERGENCY LOGIN MASYARAKAT ROUTE - BEFORE EVERYTHING ELSE
+const Masyarakat = require("./models/Masyarakat");
+const { generateToken, generateRefreshToken } = require("./middleware/auth");
+
+app.post("/api/auth/login-masyarakat", async (req, res) => {
+  console.log("🚨 EMERGENCY ROUTE HIT!", req.body);
+
+  try {
+    const { nik, nama } = req.body;
+
+    if (!nik || !nama) {
+      return res.status(400).json({
+        success: false,
+        message: "NIK dan nama diperlukan",
+      });
+    }
+
+    // Cari masyarakat berdasarkan NIK dan nama
+    const masyarakat = await Masyarakat.loginWithNIKAndName(nik, nama);
+
+    if (!masyarakat) {
+      return res.status(401).json({
+        success: false,
+        message: "NIK atau nama tidak ditemukan",
+      });
+    }
+
+    // Buat user object untuk masyarakat
+    const userObject = {
+      id: `masyarakat_${masyarakat.id}`,
+      username: masyarakat.nama,
+      email: null,
+      role: "masyarakat",
+      masyarakat_id: masyarakat.id,
+      masyarakat_nama: masyarakat.nama,
+      masyarakat_nik: masyarakat.nik,
+      is_active: true,
+    };
+
+    // Generate tokens
+    const token = generateToken(userObject.id, userObject.role);
+    const refreshToken = generateRefreshToken(userObject.id);
+
+    console.log("🎉 LOGIN SUCCESS!", userObject.username);
+
+    res.status(200).json({
+      success: true,
+      message: "Login berhasil",
+      data: {
+        user: userObject,
+        token,
+        refreshToken,
+      },
+    });
+  } catch (error) {
+    console.error("💥 Login error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan saat login",
+      error: error.message,
+    });
+  }
+});
+
+// Debug middleware - log all requests
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
+  next();
+});
+
 // Serve static files for uploads
 app.use("/uploads", express.static("uploads"));
 
@@ -57,7 +128,9 @@ app.get("/", (req, res) => {
 });
 
 // API Routes
+console.log("Registering auth routes...");
 app.use("/api/auth", require("./routes/auth"));
+console.log("Registering payment routes...");
 app.use("/api/payments", require("./routes/payments"));
 
 // API Routes dengan validasi untuk POST dan PUT
@@ -72,7 +145,7 @@ app.use(
   masyarakatRoutes
 );
 
-// Error handling middleware
+// Error handling middleware (must be last)
 app.use(notFound);
 app.use(errorHandler);
 
