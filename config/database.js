@@ -1,16 +1,25 @@
 const mysql = require('mysql2');
 require('dotenv').config();
 
-// Konfigurasi koneksi database MySQL
+// Require env helper to avoid leaking defaults in code
+const requireEnv = (key, { allowEmpty = false } = {}) => {
+  const val = process.env[key];
+  if (val === undefined || (!allowEmpty && val === '')) {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+  return val;
+};
+
+// Konfigurasi koneksi database MySQL (no hard-coded defaults)
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
+  host: requireEnv('DB_HOST'),
+  user: requireEnv('DB_USER'),
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'data_masyarakat',
-  port: process.env.DB_PORT || 3306,
+  database: requireEnv('DB_NAME'),
+  port: Number(process.env.DB_PORT || 3306),
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
 };
 
 // Membuat connection pool untuk performa yang lebih baik
@@ -32,5 +41,5 @@ const testConnection = async () => {
 
 module.exports = {
   pool: promisePool,
-  testConnection
+  testConnection,
 };
