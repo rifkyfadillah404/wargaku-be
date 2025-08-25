@@ -1,5 +1,7 @@
 const Payment = require("../models/Payment");
 const PaymentType = require("../models/PaymentType");
+const User = require("../models/User");
+const Masyarakat = require("../models/Masyarakat");
 
 // Get all payments
 const getAllPayments = async (req, res) => {
@@ -138,9 +140,37 @@ const createPayment = async (req, res) => {
       });
     }
 
+    // Ensure a valid user_id for insert (DB may require NOT NULL/FK)
+    let userIdForInsert = null;
+    if (req.user.role === "admin") {
+      userIdForInsert = req.user.id;
+    } else {
+      // masyarakat role
+      // Try to find an existing user linked to this masyarakat
+      const existingUser = masyarakat_id ? await User.getByMasyarakatId(masyarakat_id) : null;
+      if (existingUser && existingUser.id) {
+        userIdForInsert = existingUser.id;
+      } else if (masyarakat_id) {
+        // Create a shadow user for this masyarakat to satisfy FK constraints
+        const masyarakatData = await Masyarakat.getById(masyarakat_id);
+        const username = `masyarakat_${masyarakat_id}`;
+        const tempPassword = `AutoGen_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        userIdForInsert = await User.create({
+          username,
+          email: `${masyarakat_id}@masyarakat.local`,
+          password: tempPassword,
+          role: "masyarakat",
+          masyarakat_id,
+        });
+      } else {
+        // Fallback: keep compatibility
+        userIdForInsert = req.user.id || null;
+      }
+    }
+
     // Create payment
     const paymentId = await Payment.create({
-      user_id: req.user.role === "masyarakat" ? null : req.user.id,
+      user_id: userIdForInsert,
       masyarakat_id: masyarakat_id,
       payment_type_id,
       amount,
@@ -158,11 +188,17 @@ const createPayment = async (req, res) => {
       data: newPayment,
     });
   } catch (error) {
-    console.error("Create payment error:", error);
+    console.error("Create payment error:", {
+      message: error.message,
+      code: error.code,
+      sqlMessage: error.sqlMessage,
+      sqlState: error.sqlState,
+      stack: error.stack
+    });
     res.status(500).json({
       success: false,
-      message: "Terjadi kesalahan saat membuat pembayaran",
-      error: error.message,
+      message: error?.sqlMessage || error?.message || "Terjadi kesalahan saat membuat pembayaran",
+      error: error?.message || null
     });
   }
 };

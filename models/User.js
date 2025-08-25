@@ -81,14 +81,17 @@ class User {
   static async create(data) {
     try {
       const { username, email, password, role = 'user', masyarakat_id } = data;
+
+      // Coerce app role "masyarakat" to DB-compatible role to avoid ENUM/length truncation
+      const normalizedRole = role === 'masyarakat' ? 'user' : role;
       
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
       
       const [result] = await pool.execute(`
-        INSERT INTO users (username, email, password, role, masyarakat_id) 
+        INSERT INTO users (username, email, password, role, masyarakat_id)
         VALUES (?, ?, ?, ?, ?)
-      `, [username, email, hashedPassword, role, masyarakat_id]);
+      `, [username, email, hashedPassword, normalizedRole, masyarakat_id]);
       
       return result.insertId;
     } catch (error) {

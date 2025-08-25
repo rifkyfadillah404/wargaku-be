@@ -33,6 +33,10 @@ const upload = multer({
   }
 });
 
+// Payment types routes - placed BEFORE dynamic :id routes to avoid route conflicts
+router.get('/types/all', authenticateToken, requireUser, paymentController.getAllPaymentTypes);
+router.get('/types/:id', authenticateToken, requireUser, paymentController.getPaymentTypeById);
+
 // Payment routes
 router.get('/', authenticateToken, requireUser, paymentController.getAllPayments);
 router.get('/stats', authenticateToken, requireUser, paymentController.getPaymentStats);
@@ -41,9 +45,5 @@ router.post('/', authenticateToken, requireUser, upload.single('proof_image'), p
 router.put('/:id', authenticateToken, requireUser, upload.single('proof_image'), paymentController.updatePayment);
 router.put('/:id/status', authenticateToken, requireAdmin, paymentController.updatePaymentStatus);
 router.delete('/:id', authenticateToken, requireUser, paymentController.deletePayment);
-
-// Payment types routes
-router.get('/types/all', authenticateToken, requireUser, paymentController.getAllPaymentTypes);
-router.get('/types/:id', authenticateToken, requireUser, paymentController.getPaymentTypeById);
 
 module.exports = router;
